@@ -19,9 +19,14 @@ angular
 
 function User(RDS) {
     return RDS.defineResource('users', {
+        _defaults: {
+            admin: false
+        },
+        idAttribute: 'userID',
         firstName: RDS.property('string'),
         lastName: RDS.property('string'),
         age: RDS.property('number'),
+        admin: RDS.property('boolean'),
         birthDay: RDS.property('date'),
         organization: RDS.belongsTo('organization'),
         blog_posts: RDS.hasMany('blog_posts'),
@@ -66,6 +71,11 @@ function UserController($scope, User) {
 
 * Each record/collection object would have `isLoaded` property to indicate if it is loaded or not.
 * Each record would have a property `$new` to indicate if it's persisted or not
+* Each record would have a property `$dirty` to indicate if it has unsaved changes
+* Each record would have a method `changedAttributes()` which returns a list of changed attributes
+* Each record would have a method `rollback()` which rollsback the changes
+* Each collection would have a method `findWhere()` which returns an object from the collection for the given query
+* Each collection would have a method `where()` which returns a list of objects from the collection for the given query
 
 
 ## Referencing it in the template
