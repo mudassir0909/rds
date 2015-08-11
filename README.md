@@ -75,3 +75,7 @@ function UserController($scope, User) {
     <li>{{user.fullName()}}</li>
 </ul>
 ```
+
+#Dependencies
+
+RDS depends on Angular and Restangular.
