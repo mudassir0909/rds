@@ -1,23 +1,24 @@
 (function() {
 var rds = angular.module('rds', []);
 
-rds.provider('RDS', ['RestangularProvider', '$parse', RDSProvider]);
+rds.provider('RDS', RDSProvider);
 
-function RDSProvider(RestangularProvider, $parse) {
+function RDSProvider() {
     var schemaMap = {};
-    var _getIdFromElem = RestangularProvider.configuration.getIdFromElem;
 
-    RestangularProvider.configuration.getIdFromElem = function(elem) {
-        var schema = schemaMap[elem.route];
+    this.$get = ['Restangular', '$parse', function(Restangular, $parse) {
+        var _getIdFromElem = Restangular.configuration.getIdFromElem;
 
-        if (schema && schema.idAttribute) {
-            return $parse(schema.idAttribute)(elem);
-        } else if (_.isFunction(_getIdFromElem)) {
-            return _getIdFromElem(elem);
-        }
-    }
+        Restangular.configuration.getIdFromElem = function(elem) {
+            var schema = schemaMap[elem.route];
 
-    this.$get = ['Restangular', function(Restangular) {
+            if (schema && schema.idAttribute) {
+                return $parse(schema.idAttribute)(elem);
+            } else if (_.isFunction(_getIdFromElem)) {
+                return _getIdFromElem(elem);
+            }
+        };
+
         function createRDSService() {
             var service = {
                 defineResource: defineResource,
