@@ -1,0 +1,29 @@
+{
+  "name": "rds",
+  "version": "0.0.0",
+  "homepage": "https://github.com/mudassir0909/rds",
+  "authors": [
+    "mudassir0909 <mudassir.dev@gmail.com>"
+  ],
+  "description": "RDS is an AngularJS based data store which is built on top of Restangular",
+  "keywords": [
+    "restangular",
+    "angular",
+    "data",
+    "store",
+    "datastore",
+    "models",
+    "collections"
+  ],
+  "license": "MIT",
+  "ignore": [
+    "**/.*",
+    "node_modules",
+    "bower_components",
+    "test",
+    "tests"
+  ],
+  "dependencies": {
+    "restangular": "~1.5.1"
+  }
+}
