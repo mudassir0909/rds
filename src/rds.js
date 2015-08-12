@@ -5,15 +5,16 @@ rds.provider('RDS', RDSProvider);
 
 function RDSProvider() {
     var schemaMap = {};
+    var idAttributeMap = {};
 
     this.$get = ['Restangular', '$parse', function(Restangular, $parse) {
         var _getIdFromElem = Restangular.configuration.getIdFromElem;
 
         Restangular.configuration.getIdFromElem = function(elem) {
-            var schema = schemaMap[elem.route];
+            var idAttribute = idAttributeMap[elem.route];
 
-            if (schema && schema.idAttribute) {
-                return $parse(schema.idAttribute)(elem);
+            if (idAttribute) {
+                return $parse(idAttribute)(elem);
             } else if (_.isFunction(_getIdFromElem)) {
                 return _getIdFromElem(elem);
             }
@@ -29,10 +30,46 @@ function RDSProvider() {
 
             return service;
 
-            function defineResource(name, schema) {
+            function defineResource(name, options) {
+                var schema = extractSchema(options);
+                var instanceMethods = extractInstanceMethods(options);
+
+                idAttributeMap[name] = options.idAttribute;
                 schemaMap[name] = schema;
 
+                Restangular.extendModel(name, function(model) {
+                    _(instanceMethods).each(function(value, key) {
+                        model[key] = value;
+                    });
+
+                    return model;
+                });
+
                 return new Resource(name, schema);
+            }
+
+            function extractSchema(options) {
+                var schema = {};
+
+                _(options).each(function(value, key) {
+                    if (value instanceof Property || value instanceof Relation) {
+                        schema[key] = value;
+                    }
+                });
+
+                return schema;
+            }
+
+            function extractInstanceMethods(options) {
+                var methods = {};
+
+                _(options).each(function(value, key) {
+                    if (_.isFunction(value)) {
+                        methods[key] = value;
+                    }
+                });
+
+                return methods;
             }
 
             function property() {}
@@ -41,6 +78,10 @@ function RDSProvider() {
 
             function hasMany() {}
         }
+
+        function Property() {}
+
+        function Relation() {}
 
         function Resource(name, options) {
             options = options || {};
