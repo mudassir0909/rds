@@ -1,9 +1,21 @@
 (function() {
 var rds = angular.module('rds', []);
 
-rds.provider('RDS', RDSProvider);
+rds.provider('RDS', ['RestangularProvider', '$parse', RDSProvider]);
 
-function RDSProvider() {
+function RDSProvider(RestangularProvider, $parse) {
+    var schemaMap = {};
+    var _getIdFromElem = RestangularProvider.configuration.getIdFromElem;
+
+    RestangularProvider.configuration.getIdFromElem = function(elem) {
+        var schema = schemaMap[elem.route];
+
+        if (schema && schema.idAttribute) {
+            return $parse(schema.idAttribute)(elem);
+        } else if (_.isFunction(_getIdFromElem)) {
+            return _getIdFromElem(elem);
+        }
+    }
 
     this.$get = ['Restangular', function(Restangular) {
         function createRDSService() {
@@ -17,6 +29,8 @@ function RDSProvider() {
             return service;
 
             function defineResource(name, schema) {
+                schemaMap[name] = schema;
+
                 return new Resource(name, schema);
             }
 
@@ -31,7 +45,6 @@ function RDSProvider() {
             options = options || {};
 
             this.name = name;
-            this.idAttribute = options.idAttribute;
             this.defaults = options.defaults || {};
             this.$restangular = Restangular.service(name);
 
