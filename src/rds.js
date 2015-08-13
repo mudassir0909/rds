@@ -4,6 +4,62 @@ var rds = angular.module('rds', []);
 rds.provider('RDS', RDSProvider);
 
 function RDSProvider() {
+    var dataTransformers = {};
+    var stringTransform = {
+        serialize: function(value) {
+            if (_.isFunction(value.toString)) {
+                return value.toString();
+            }
+
+            return value;
+        }
+    };
+    var numberTransform = {
+        deserialize: function(value, options) {
+            var transformedValue = Number(value);
+
+            options = options || {};
+
+            if (!value && options.allowBlank) {
+                return;
+            }
+
+            if (isNaN(transformedValue)) {
+                return options.allowBlank ? null : 0;
+            }
+
+            if (options.integer) {
+               return parseInt(transformedValue, 10);
+            }
+
+            return transformedValue;
+        }
+    };
+    var booleanTransform = {
+        deserialize: function(value) {
+            return !!value;
+        }
+    };
+
+    stringTransform.deserialize = stringTransform.serialize;
+    numberTransform.deserialize = numberTransform.serialize;
+    booleanTransform.deserialize = booleanTransform.serialize;
+
+    this.registerDataTransform = registerDataTransform;
+
+    function registerDataTransform(name, config) {
+        dataTransformers[name] = new DataTransform(config);
+    };
+
+    function DataTransform(config) {
+        this.serialize = config.serialize;
+        this.deserialize = config.deserialize;
+    }
+
+    registerDataTransform('string', stringTransform);
+    registerDataTransform('number', numberTransform);
+    registerDataTransform('boolean', booleanTransform);
+
     this.$get = ['Restangular', '$parse', function(Restangular, $parse) {
         var idAttributeMap = {};
         var _getIdFromElem = Restangular.configuration.getIdFromElem;
@@ -21,9 +77,7 @@ function RDSProvider() {
         function createRDSService() {
             var service = {
                 defineResource: defineResource,
-                property: property,
-                belongsTo: belongsTo,
-                hasMany: hasMany
+                property: property
             };
 
             return service;
@@ -31,11 +85,16 @@ function RDSProvider() {
             function defineResource(name, options) {
                 return new Resource(name, options);
             }
+
+            function property(name, options) {
+                return new Property(name, options);
+            }
         }
 
-        function Property() {}
-
-        function Relation() {}
+        function Property(name, options) {
+            this.name = name;
+            this.options = options;
+        }
 
         function Resource(name, options) {
             var schema = extractSchema(options);
@@ -60,13 +119,17 @@ function RDSProvider() {
                 }
 
                 _(schema).each(function(value, key) {
-                    element[key] = value.deserialize(element[key]);
+                    var transformer = dataTransformers[value.name];
+
+                    element[key] = transformer.deserialize(element[key], value.options);
                 });
             });
 
             Restangular.addRequestInterceptor(function(element, operation, name, url) {
                 _(schema).each(function(value, key) {
-                    element[key] = value.serialize(element[key]);
+                    var transformer = dataTransformers[value.name];
+
+                    element[key] = transformer.serialize(element[key], value.options);
                 });
 
                 return element;
@@ -83,7 +146,7 @@ function RDSProvider() {
                 var schema = {};
 
                 _(options).each(function(value, key) {
-                    if (value instanceof Property || value instanceof Relation) {
+                    if (value instanceof Property) {
                         schema[key] = value;
                     }
                 });
