@@ -151,7 +151,13 @@ function RDSProvider() {
                 record.setCollection(this);
                 this.records.push(record);
 
-                return this.records;
+                return this;
+            },
+
+            pushObjects: function(records) {
+                _(records).each(this.push, this);
+
+                return this;
             }
         };
 
