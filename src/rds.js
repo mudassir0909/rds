@@ -4,10 +4,8 @@ var rds = angular.module('rds', []);
 rds.provider('RDS', RDSProvider);
 
 function RDSProvider() {
-    var schemaMap = {};
-    var idAttributeMap = {};
-
     this.$get = ['Restangular', '$parse', function(Restangular, $parse) {
+        var idAttributeMap = {};
         var _getIdFromElem = Restangular.configuration.getIdFromElem;
 
         Restangular.configuration.getIdFromElem = function(elem) {
@@ -31,22 +29,55 @@ function RDSProvider() {
             return service;
 
             function defineResource(name, options) {
-                var schema = extractSchema(options);
-                var instanceMethods = extractInstanceMethods(options);
+                return new Resource(name, options);
+            }
+        }
 
-                idAttributeMap[name] = options.idAttribute;
-                schemaMap[name] = schema;
+        function Property() {}
 
-                Restangular.extendModel(name, function(model) {
-                    _(instanceMethods).each(function(value, key) {
-                        model[key] = value;
-                    });
+        function Relation() {}
 
-                    return model;
+        function Resource(name, options) {
+            var schema = extractSchema(options);
+            var instanceMethods = extractInstanceMethods(options);
+            var idAttribute = options.idAttribute;
+            var defaults = options.defaults;
+
+            idAttributeMap[name] = idAttribute;
+
+            Restangular.extendModel(name, function(model) {
+                _(model).extend(instanceMethods);
+
+                return model;
+            });
+
+            Restangular.addElementTransformer(name, false, function(element) {
+                // If the idAttribute is undefined then it must be a new record
+                var isNewRecord = !element[idAttributeMap[name] || 'id'];
+
+                if (isNewRecord) { //setup defaults
+                    _(element).extend(defaults);
+                }
+
+                _(schema).each(function(value, key) {
+                    element[key] = value.deserialize(element[key]);
+                });
+            });
+
+            Restangular.addRequestInterceptor(function(element, operation, name, url) {
+                _(schema).each(function(value, key) {
+                    element[key] = value.serialize(element[key]);
                 });
 
-                return new Resource(name, schema);
-            }
+                return element;
+            });
+
+            this.$restangular = Restangular.service(name);
+            this.$new = function(attributes) {
+                var restangularizedObject = Restangular.restangularizeElement(null, attributes, name);
+
+                return new Record(restangularizedObject);
+            };
 
             function extractSchema(options) {
                 var schema = {};
@@ -71,102 +102,128 @@ function RDSProvider() {
 
                 return methods;
             }
-
-            function property() {}
-
-            function belongsTo() {}
-
-            function hasMany() {}
-        }
-
-        function Property() {}
-
-        function Relation() {}
-
-        function Resource(name, options) {
-            options = options || {};
-
-            this.name = name;
-            this.defaults = options.defaults || {};
-            this.$restangular = Restangular.service(name);
-
-            _(options).each(function (value, key) {
-                // define request/response transformers for serializing/deserializing columns
-            });
         }
 
         Resource.prototype = {
             findAll: function() {
-                return new Collection(this.$restangular.getList.apply(this, arguments));
+                var promise = this.$restangular.getList.apply(this.$restangular, arguments);
+
+                return new Collection(promise);
             },
 
             find: function() {
                 var id = arguments[0];
                 var args = _.rest(arguments);
+                var restangularizedObject = this.$restangular.one(id);
+                var record = new Record(restangularizedObject);
 
-                return new Record(this.$restangular.one(id).get.apply(this, args));
+                record.$promise = record.get.apply(record, args);
+
+                return record;
             },
 
-            create: function() {
-                var new Record()
+            create: function(attributes) {
+                var record = this.$new(attributes);
+
+                return record.save();
             }
-        }
-
-        function DataModel(promise) {
-            var self = this;
-
-            this.$promise = promise;
-            this.isLoaded = false;
-
-            promise.finally(function() {
-                self.isLoaded = true;
-            });
         }
 
         function Collection(promise) {
             var self = this;
 
-            DataModel.call(this, promise);
+            this.isLoaded = false;
+            this.$promise = promise;
             this.records = [];
 
             promise.then(function(response) {
                 _(response).each(function(item) {
-                    self.records.push(new Record(item, self.schema));
+                    self.records.push(new Record(item, self));
                 });
+            })
+            .finally(function() {
+                self.isLoaded = true;
             });
-
-            this.records = promise.$object;
         }
 
-        function Record(restangularizedData, schema) {
-            var self = this;
+        Collection.prototype = {
+            push: function(record) {
+                record.setCollection(this);
+                this.records.push(record);
 
-            this.schema = schema; // required for transformations
+                return this.records;
+            }
+        };
 
-            if (_.isFunction(restangularizedData.then)) {
+        function Record(restangularizedObject, collection) {
+            var _get, _save;
+
+            _(this).extend(restangularizedObject);
+
+            this.isLoaded = false;
+            this.setCollection(collection);
+
+            _get = this.get;
+            _save = this.save;
+            _remove = this.remove;
+
+            this.get = function() {
+                var self = this;
+
                 this.isLoaded = false;
 
-                restangularizedData.then(function(response) {
-                    restangularizedData = response;
-                    initialize();
+                this.$promise = _get.apply(this, arguments).finally(function() {
+                    self.isLoaded = true;
                 });
-            } else {
-                initialize();
-            }
 
-            function initialize() {
-                self.isLoaded = true;
+                return this;
+            };
 
-                _.extend(this, restangularizedData);
+            this.save = function() {
+                var self = this;
 
-                _(schema).each(function(value, key) {
-                    self[key] = value.deserialize(self[key]);
+                this.isSaving = true;
+
+                this.$promise = _save.apply(this, arguments).finally(function() {
+                    self.isSaving = false;
                 });
-            }
+
+                return this;
+            };
+
+            this.remove = function() {
+                if (this.isNewRecord()) {
+                    return;
+                }
+
+                var self = this;
+
+                this.isRemoving = true;
+
+                this.$promise = _remove.apply(this, arguments).then(function() {
+                    if (_.isArray(self.collection)) {
+                        self.collection.splice(self.collection.indexOf(self), 1);
+                    }
+                });
+
+                return this;
+            };
+
+            this.refresh = _.bind(this.get, this);
         }
 
         Record.prototype = {
-            save: function() {} //PUT/POST based on id
+            isNewRecord: function() {
+                var idAttribute = idAttributeMap[this.route] || 'id';
+
+                return !this[idAttribute];
+            },
+
+            setCollection: function(collection) {
+                this.collection = collection;
+
+                return this;
+            }
         };
 
         return createRDSService();
