@@ -162,7 +162,7 @@ function RDSProvider() {
         };
 
         function Record(restangularizedObject, collection) {
-            var _get, _save;
+            var _get, _save, _remove;
 
             _(this).extend(restangularizedObject);
 
