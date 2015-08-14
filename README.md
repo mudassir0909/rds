@@ -6,7 +6,7 @@ RDS is an AngularJS based data store which is built on top of [Restangular](http
 
 The model part of MVC* in AngularJS is the scope object which is more of a view model & I found data model to be the missing piece in AngularJS. The traditional way of dealing with data model using `$http` seemed pretty hard to maintain on a complex web application. And coming to AngularJS after building complex web applications using EmberJS & BackboneJS, I was really missing a standard way to organize data models in AngularJS similar to `Backbone.Model`, `Backbone.Collection` & ember data.
 
-I wanted a way to define my data model schema, enhance certain properties, cache certain records, add custom methods & make it more robust. I did alot of research & found [Restangular](https://github.com/mgonto/restangular) to be pretty exquisite but it is missing datastore. This module aims to fill that gap. I also plan to bring the best of features from ember data, backbone model-collections.
+I wanted a way to define my data model schema, enhance certain properties, cache certain records, add custom methods & make it more robust. I did alot of research & found [Restangular](https://github.com/mgonto/restangular) to be pretty exquisite but it is missing datastore. This module aims to fill that gap. I also plan to bring the best of features from ember data, backbone model-collections & Rails activerecord.
 
 #Usage
 
