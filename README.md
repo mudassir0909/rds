@@ -19,7 +19,7 @@ angular
 
 function User(RDS) {
     return RDS.defineResource('users', {
-        _defaults: {
+        defaults: {
             admin: false
         },
         idAttribute: 'userID',
@@ -28,9 +28,7 @@ function User(RDS) {
         age: RDS.property('number'),
         admin: RDS.property('boolean'),
         birthDay: RDS.property('date'),
-        organization: RDS.belongsTo('organization'),
-        blog_posts: RDS.hasMany('blog_posts'),
-        fullName: fullName
+        fullName: fullName // instance method
     });
 
     function fullName() {
@@ -47,36 +45,68 @@ angular
     .controller('UserController', UserController);
 
 function UserController($scope, User) {
-    //GET /users?admin=false, returns an enhance array which gets populated once the data is returned
-    vm.users = User.findAll({admin: false});
-    // GET /users/1, returns a js object which gets populated by the properties on data load
-    vm.user = User.find(1);
-    // client side record of the same
-    vm.new_user = User.create({some: 'params'});
-    vm.new_user_from_list = vm.users.create({some: 'params'});
-    vm.another_new_user = User.create({some: 'params'});
+    // does GET /users
+    $scope.users = User.findAll();
+    // does GET /users?admin=true
+    $scope.admin_users = User.findAll({admin: true});
 
-    vm.users.push(vm.another_new_user);
+    /*
+     Suppose the backend returned the following result set
 
-    vm.user.save({updated: 'property'}); // update the record using PUT
-    vm.new_user.save(); // create a new record using POST
-    vm.new_user_from_list.save(); //this record will get pushed into the list after save
-    vm.another_new_user.save(); // this record is already pushed into the list
+     [{
+        "userID": 1,
+        "firstName": "Mudassir",
+        "lastName": "Ali",
+        "age": "23", // Deliberately using stringfied number for illustration
+        "admin": "true",
+        "birthday": "2015-08-14T16:41:15.969Z"
+    }]
+    */
+    var user = $scope.admin_users.records[0];
+    console.log(user.age) //=> 23, although server returned a stringified version it gets casted to number
+    console.log(user.birthDay) // would be a a javascript date object
+    console.log(user.fullName()) // Mudassir Ali
 
-    vm.user.remove(); // DELETE, has nothing to do with any list
-    vm.new_user.remove(); // DELETE, this one too has nothing to do with any list
-    vm.new_user_from_list.remove(); // this guy gets removed from the list after DELETE
-    vm.another_new_user.remove(); // gets removed from the list too after DELETE}
+    $scope.new_user = User.$new({
+        firstName: "Bruce",
+        lastName: "Wayne"
+    });
+    console.log($scope.new_user.admin); //=> false, since we have specified it in defaults
+    $scope.new_user.isNewRecord(); //=> true
+    $scope.new_user.save(); // Does POST /users
+
+    $scope.user = User.find(2); // Does GET /users/2
+    $scope.user.lastName = "Stark";
+    console.log($scope.user.userID); // 2
+    $scope.user.save(); // Does PUT /users/2, it uses userID as the id attribute
+
+    // This is equivalent to .$new() + .save()
+    $scope.another_user = User.create({firstName: "Tony", lastName: "Stark"});
+
+    // You can access the $promise object as follows
+    $scope.user.save().$promise.then(function() {
+        alert("User created successfully");
+        console.log($scope.user.isSaving); //=> false
+    });
+    console.log($scope.user.isSaving); //=> true, you can use this property to display a loader
+
+    var user = User.find(2).$promise.then(function() {
+        console.log(user.isLoaded); //=> true
+    });
+    console.log(user.isLoaded); //=> false, again bind this to a loader
+
+    // Now into more interesting stuff
+    $scope.yet_another_new_user = User.create({firstName: "Bruce", lastName: "Banner"});
+    $scope.users.push($scope.yet_another_user); // Assume we are binding this list into template somewhere
+    /*
+        Does DELETE /users/{userID}
+        In addition to that this object will also be removed from the $scope.users collection
+        as well after successful deletion & eventually be removed from the UI where it was
+        bound via ng-repeat, pretty cool, right ?
+    */
+    $scope.yet_another_new_user.remove();
+}
 ```
-
-* Each record/collection object would have `isLoaded` property to indicate if it is loaded or not.
-* Each record would have a property `$new` to indicate if it's persisted or not
-* Each record would have a property `$dirty` to indicate if it has unsaved changes
-* Each record would have a method `changedAttributes()` which returns a list of changed attributes
-* Each record would have a method `rollback()` which rollsback the changes
-* Each collection would have a method `findWhere()` which returns an object from the collection for the given query
-* Each collection would have a method `where()` which returns a list of objects from the collection for the given query
-
 
 ## Referencing it in the template
 ```html
@@ -86,6 +116,13 @@ function UserController($scope, User) {
 </ul>
 ```
 
+## TODO
+* Each record would have a property `$dirty` to indicate if it has unsaved changes
+* Each record would have a method `changedAttributes()` which returns a list of changed attributes
+* Each record would have a method `rollback()` which rollsback the changes
+* Each collection would have a method `findWhere()` which returns an object from the collection for the given query
+* Each collection would have a method `where()` which returns a list of objects from the collection for the given query
+
 #Dependencies
 
-RDS depends on Angular and Restangular.
+RDS depends on Angular and Restangular(which means you need underscore/loadash too ;) )
