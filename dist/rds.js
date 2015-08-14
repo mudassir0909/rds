@@ -1,3 +1,5 @@
+/*! rds - v0.0.0 - 2015-08-14
+* Copyright (c) 2015 ; Licensed  */
 (function() {
 var rds = angular.module('rds', []);
 
@@ -49,7 +51,7 @@ function RDSProvider() {
 
     function registerDataTransform(name, config) {
         dataTransformers[name] = new DataTransform(config);
-    };
+    }
 
     function DataTransform(config) {
         this.serialize = config.serialize;
@@ -125,7 +127,7 @@ function RDSProvider() {
                 });
             });
 
-            Restangular.addRequestInterceptor(function(element, operation, name, url) {
+            Restangular.addRequestInterceptor(function(element) {
                 _(schema).each(function(value, key) {
                     var transformer = dataTransformers[value.name];
 
@@ -190,7 +192,7 @@ function RDSProvider() {
 
                 return record.save();
             }
-        }
+        };
 
         function Collection(promise) {
             var self = this;

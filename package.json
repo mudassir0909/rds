@@ -1,0 +1,22 @@
+{
+  "name": "rds",
+  "version": "0.0.0",
+  "description": "RDS is an AngularJS based data store which is built on top of Restangular",
+  "readme": "",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/mudassir0909/rds.git"
+  },
+  "author": "mudassir0909 <mudassir.dev@gmail.com>",
+  "engines": {
+    "node": ">= 0.10.0"
+  },
+  "devDependencies": {
+    "grunt": "~0.4.5",
+    "grunt-contrib-jshint": "~0.10.0",
+    "grunt-contrib-watch": "~0.6.1",
+    "grunt-contrib-nodeunit": "~0.4.1",
+    "grunt-contrib-concat": "~0.4.0",
+    "grunt-contrib-uglify": "~0.5.0"
+  }
+}
