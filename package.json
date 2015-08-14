@@ -1,6 +1,6 @@
 {
   "name": "rds",
-  "version": "0.0.0",
+  "version": "0.1.0",
   "description": "RDS is an AngularJS based data store which is built on top of Restangular",
   "readme": "",
   "repository": {
